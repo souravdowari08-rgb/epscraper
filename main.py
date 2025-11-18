@@ -1,5 +1,6 @@
 import asyncio
 import urllib.parse
+import os
 from bs4 import BeautifulSoup
 
 from quart import Quart, request, jsonify
@@ -26,6 +27,7 @@ CHROME_ARGS = [
 _playwright = None
 _browser = None
 _context = None
+
 
 async def extract_redirect_url(page):
     async def snap():
@@ -61,7 +63,7 @@ async def extract_redirect_url(page):
 async def fetch_variant(context, key, url, selector):
     page = await context.new_page()
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
         try:
             element = await page.query_selector(selector)
@@ -95,7 +97,8 @@ async def init_browser():
     _playwright = await async_playwright().start()
     _browser = await _playwright.chromium.launch(headless=True, args=CHROME_ARGS)
     _context = await _browser.new_context(
-        user_agent=UA, viewport={"width": 1280, "height": 720}
+        user_agent=UA,
+        viewport={"width": 1280, "height": 720}
     )
 
     try:
@@ -123,7 +126,7 @@ async def close_browser():
             await _playwright.stop()
     except:
         pass
-    print("✔️ Browser closed.")
+    print("✔ Browser closed.")
 
 
 @app.route("/getlink")
@@ -140,12 +143,12 @@ async def get_link():
     page = await _context.new_page()
 
     try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=25000)
-        await asyncio.sleep(1.5)
+        await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        await asyncio.sleep(2)
 
         try:
             await page.evaluate(
-                "(()=>{const f=document.getElementById('landing');if(f&&f.submit)f.submit();})()"
+                "(() => { const f=document.getElementById('landing'); if(f&&f.submit) f.submit(); })()"
             )
         except:
             pass
@@ -160,7 +163,7 @@ async def get_link():
                 "debug_title": await page.title(),
             }), 504
 
-        await page.goto(redirect_url, wait_until="domcontentloaded", timeout=25000)
+        await page.goto(redirect_url, wait_until="domcontentloaded", timeout=30000)
 
         final_url = page.url
         file_id = urllib.parse.urlparse(final_url).path.split("/")[-1]
@@ -197,4 +200,5 @@ async def get_link():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
